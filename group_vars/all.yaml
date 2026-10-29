@@ -3,15 +3,15 @@ ansible_password: DevOps321
 
 ARTIFACT_URL: https://raw.githubusercontent.com/daws-92s/roboshop-documentation/refs/heads/main/artifacts
 
-MONGODB_HOST: mongodb.daws92s.shop
-REDIS_HOST: redis.daws92s.shop
-MYSQL_HOST: mysql.daws92s.shop
-RABBITMQ_HOST: rabbitmq.daws92s.shop
-CATALOGUE_HOST: catalogue.daws92s.shop
-USER_HOST: user.daws92s.shop
-CART_HOST: cart.daws92s.shop
-SHIPPING_HOST: shipping.daws92s.shop
-PAYMENT_HOST: payment.daws92s.shop
+MONGODB_HOST: mongodb.daws92s.store
+REDIS_HOST: redis.daws92s.store
+MYSQL_HOST: mysql.daws92s.store
+RABBITMQ_HOST: rabbitmq.daws92s.store
+CATALOGUE_HOST: catalogue.daws92s.store
+USER_HOST: user.daws92s.store
+CART_HOST: cart.daws92s.store
+SHIPPING_HOST: shipping.daws92s.store
+PAYMENT_HOST: payment.daws92s.store
 
 MYSQL_ROOT_PASSWORD: RoboShop@1
 RABBITMQ_USER: roboshop
