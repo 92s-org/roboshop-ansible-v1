@@ -4,9 +4,9 @@
   hosts: local
   connection: local
   vars:
-    instances: ["mongodb", "redis", "mysql", "rabbitmq", "catalogue", "user", "cart", "shipping", "payment", "dispatch", "frontend"]
-    image_id: ami-0220d79f3f480ecf5   # must be RHEL 9.8+ (python 3.14), check: cat /etc/redhat-release
-    domain_name: daws92s.shop         # replace with your domain
+    instances: ["mongodb", "redis",  "rabbitmq", "catalogue", "user", "cart", "shipping", "payment", "dispatch", "frontend"]
+    image_id: ami-0055977a6e828a4f4   # must be RHEL 9.8+ (python 3.14), check: cat /etc/redhat-release
+    domain_name: daws92s.store         # replace with your domain
     action: create
   tasks:
   - name: create ec2 instances
