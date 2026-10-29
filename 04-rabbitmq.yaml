@@ -1,0 +1,38 @@
+- name: configuring rabbitmq server
+  hosts: rabbitmq
+  become: yes
+  tasks:
+  - name: copy rabbitmq repo
+    copy:
+      src: rabbitmq.repo
+      dest: /etc/yum.repos.d/rabbitmq.repo
+
+  - name: install erlang and rabbitmq server
+    package:
+      name:
+      - erlang
+      - rabbitmq-server
+      state: present
+
+  - name: start and enable rabbitmq-server
+    service:
+      name: rabbitmq-server
+      state: started
+      enabled: yes
+
+  - name: create roboshop mq user
+    community.rabbitmq.rabbitmq_user:
+      user: "{{ RABBITMQ_USER }}"
+      password: "{{ RABBITMQ_PASSWORD }}"
+      tags: administrator     # needed only for the management UI
+      permissions:
+      - vhost: /
+        configure_priv: .*
+        read_priv: .*
+        write_priv: .*
+      state: present
+
+  - name: enable management ui (optional, port 15672)
+    community.rabbitmq.rabbitmq_plugin:
+      names: rabbitmq_management
+      state: enabled

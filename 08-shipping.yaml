@@ -1,0 +1,109 @@
+- name: configure shipping server
+  hosts: shipping
+  become: yes
+  tasks:
+  - name: enable maven 3.9
+    command: dnf module enable maven:3.9 -y
+
+  - name: install maven, java 25 and mysql client
+    package:
+      name:
+      - maven
+      - java-25-openjdk-devel
+      - mysql
+      state: present
+
+  # maven pulls java 21 too, so point the java command at java 25
+  - name: find java 25 binary
+    shell: readlink -f $(ls /usr/lib/jvm/java-25-openjdk*/bin/java | head -1)
+    register: java25
+    changed_when: false
+
+  - name: make java 25 the default
+    command: alternatives --set java {{ java25.stdout }}
+
+  - name: set JAVA_HOME for every login
+    copy:
+      dest: /etc/profile.d/java.sh
+      content: "export JAVA_HOME={{ java25.stdout | dirname | dirname }}\n"
+
+  - name: create roboshop system user
+    user:
+      name: roboshop
+      system: true
+      home: /app
+      shell: /sbin/nologin
+      create_home: false
+      comment: "roboshop system user"
+
+  - name: remove app directory
+    file:
+      path: /app
+      state: absent
+
+  - name: delete shipping.zip in tmp directory
+    file:
+      path: /tmp/shipping.zip
+      state: absent
+
+  - name: create app directory
+    file:
+      path: /app
+      state: directory
+
+  - name: download shipping
+    get_url:
+      url: "{{ ARTIFACT_URL }}/shipping-v4.zip"
+      dest: /tmp/shipping.zip
+
+  - name: unzip shipping
+    unarchive:
+      src: /tmp/shipping.zip
+      dest: /app
+      remote_src: yes
+
+  - name: build shipping
+    command: mvn clean package
+    args:
+      chdir: /app
+    environment:
+      JAVA_HOME: "{{ java25.stdout | dirname | dirname }}"
+
+  - name: move shipping jar
+    command: mv target/shipping.jar shipping.jar
+    args:
+      chdir: /app
+
+  - name: check cities data exists
+    command: mysql -h {{ MYSQL_HOST }} -uroot -p{{ MYSQL_ROOT_PASSWORD }} -N -e "SELECT COUNT(*) FROM cities.cities"
+    register: cities_count
+    ignore_errors: true
+    changed_when: false
+    tags:
+    - mysql
+
+  - name: load master data (about 60 MB, takes a minute)
+    shell: mysql -h {{ MYSQL_HOST }} -uroot -p{{ MYSQL_ROOT_PASSWORD }} < /app/db/master-data.sql
+    when: cities_count.rc != 0 or cities_count.stdout | int == 0
+    tags:
+    - mysql
+
+  - name: create shipping app user
+    shell: mysql -h {{ MYSQL_HOST }} -uroot -p{{ MYSQL_ROOT_PASSWORD }} < /app/db/app-user.sql
+    tags:
+    - mysql
+
+  - name: copy shipping service
+    template:
+      src: shipping.service.j2
+      dest: /etc/systemd/system/shipping.service
+
+  - name: daemon reload
+    systemd_service:
+      daemon_reload: true
+
+  - name: enable and restart shipping
+    service:
+      name: shipping
+      state: restarted
+      enabled: yes

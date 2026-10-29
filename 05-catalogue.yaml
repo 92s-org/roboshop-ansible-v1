@@ -1,0 +1,97 @@
+- name: configure catalogue server
+  hosts: catalogue
+  become: yes
+  tasks:
+  - name: disable default nodejs module
+    command: dnf module disable nodejs -y
+
+  - name: enable nodejs 24
+    command: dnf module enable nodejs:24 -y
+
+  - name: install nodejs
+    package:
+      name: nodejs
+      state: present
+
+  - name: create roboshop system user
+    user:
+      name: roboshop
+      system: true
+      home: /app
+      shell: /sbin/nologin
+      create_home: false
+      comment: "roboshop system user"
+
+  - name: remove app directory
+    file:
+      path: /app
+      state: absent
+
+  - name: delete catalogue.zip in tmp directory
+    file:
+      path: /tmp/catalogue.zip
+      state: absent
+
+  - name: create app directory
+    file:
+      path: /app
+      state: directory
+
+  - name: download catalogue
+    get_url:
+      url: "{{ ARTIFACT_URL }}/catalogue-v4.zip"
+      dest: /tmp/catalogue.zip
+
+  - name: unzip catalogue
+    unarchive:
+      src: /tmp/catalogue.zip
+      dest: /app
+      remote_src: yes
+
+  - name: install dependencies
+    community.general.npm:
+      path: /app
+
+  - name: copy catalogue service
+    template:
+      src: catalogue.service.j2
+      dest: /etc/systemd/system/catalogue.service
+
+  - name: copy mongodb repo
+    copy:
+      src: mongo.repo
+      dest: /etc/yum.repos.d/mongo.repo
+
+  - name: install mongodb client
+    package:
+      name: mongodb-mongosh
+      state: present
+
+  - name: count products in catalogue db
+    shell: mongosh --host "{{ MONGODB_HOST }}" --quiet --eval 'db.getSiblingDB("catalogue").products.countDocuments()'
+    register: product_count
+    changed_when: false
+    tags:
+    - mongodb
+
+  - name: print product count
+    debug:
+      msg: "products in catalogue db: {{ product_count.stdout }}"
+    tags:
+    - mongodb
+
+  - name: load master data (only once)
+    shell: mongosh --host "{{ MONGODB_HOST }}" </app/db/master-data.js
+    when: product_count.stdout | int == 0
+    tags:
+    - mongodb
+
+  - name: daemon reload
+    systemd_service:
+      daemon_reload: true
+
+  - name: enable and restart catalogue
+    service:
+      name: catalogue
+      state: restarted
+      enabled: yes

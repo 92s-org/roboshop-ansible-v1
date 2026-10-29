@@ -1,0 +1,63 @@
+- name: configure dispatch server
+  hosts: dispatch
+  become: yes
+  tasks:
+  - name: install go
+    package:
+      name: golang
+      state: present
+
+  - name: create roboshop system user
+    user:
+      name: roboshop
+      system: true
+      home: /app
+      shell: /sbin/nologin
+      create_home: false
+      comment: "roboshop system user"
+
+  - name: remove app directory
+    file:
+      path: /app
+      state: absent
+
+  - name: delete dispatch.zip in tmp directory
+    file:
+      path: /tmp/dispatch.zip
+      state: absent
+
+  - name: create app directory
+    file:
+      path: /app
+      state: directory
+
+  - name: download dispatch
+    get_url:
+      url: "{{ ARTIFACT_URL }}/dispatch-v4.zip"
+      dest: /tmp/dispatch.zip
+
+  - name: unzip dispatch
+    unarchive:
+      src: /tmp/dispatch.zip
+      dest: /app
+      remote_src: yes
+
+  - name: build dispatch binary
+    command: go build -o dispatch .
+    args:
+      chdir: /app
+
+  - name: copy dispatch service
+    template:
+      src: dispatch.service.j2
+      dest: /etc/systemd/system/dispatch.service
+
+  - name: daemon reload
+    systemd_service:
+      daemon_reload: true
+
+  - name: enable and restart dispatch
+    service:
+      name: dispatch
+      state: restarted
+      enabled: yes

@@ -1,0 +1,63 @@
+- name: configure frontend server
+  hosts: frontend
+  become: yes
+  tasks:
+  - name: disable default nginx module
+    command: dnf module disable nginx -y
+
+  - name: enable nginx 1.26
+    command: dnf module enable nginx:1.26 -y
+
+  - name: install nginx
+    package:
+      name: nginx
+      state: present
+
+  - name: remove html directory
+    file:
+      path: /usr/share/nginx/html/
+      state: absent
+
+  - name: delete frontend.zip in tmp directory
+    file:
+      path: /tmp/frontend.zip
+      state: absent
+
+  - name: create html directory
+    file:
+      path: /usr/share/nginx/html/
+      state: directory
+
+  - name: download frontend
+    get_url:
+      url: "{{ ARTIFACT_URL }}/frontend-v4.zip"
+      dest: /tmp/frontend.zip
+
+  - name: unzip frontend
+    unarchive:
+      src: /tmp/frontend.zip
+      dest: /usr/share/nginx/html/
+      remote_src: yes
+
+  # default nginx.conf is not touched, it already includes default.d/*.conf
+  - name: copy roboshop reverse proxy conf
+    template:
+      src: roboshop.conf.j2
+      dest: /etc/nginx/default.d/roboshop.conf
+
+  - name: check nginx configuration
+    command: nginx -t
+    changed_when: false
+
+  - name: allow nginx to connect to backend (SELinux)
+    ansible.posix.seboolean:
+      name: httpd_can_network_connect
+      state: true
+      persistent: true
+    when: ansible_selinux.status == "enabled"
+
+  - name: restart and enable nginx
+    service:
+      name: nginx
+      state: restarted
+      enabled: yes

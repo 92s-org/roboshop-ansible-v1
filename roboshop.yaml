@@ -1,0 +1,79 @@
+# create:  ansible-playbook roboshop.yaml
+# delete:  ansible-playbook roboshop.yaml -e action=delete
+- name: roboshop instances management
+  hosts: local
+  connection: local
+  vars:
+    instances: ["mongodb", "redis", "mysql", "rabbitmq", "catalogue", "user", "cart", "shipping", "payment", "dispatch", "frontend"]
+    image_id: ami-0220d79f3f480ecf5   # must be RHEL 9.8+ (python 3.14), check: cat /etc/redhat-release
+    domain_name: daws92s.shop         # replace with your domain
+    action: create
+  tasks:
+  - name: create ec2 instances
+    amazon.aws.ec2_instance:
+      # maven build + spring boot on java 25 needs more than 1 GB RAM
+      instance_type: "{{ 't3.small' if item == 'shipping' else 't3.micro' }}"
+      name: "roboshop-{{ item }}"
+      image_id: "{{ image_id }}"
+      region: us-east-1
+      security_groups:
+      - "roboshop-{{ item }}"
+      - roboshop-common
+    loop: "{{ instances }}"
+    register: ec2_output
+    when: action == "create"
+
+  - name: create r53 records
+    amazon.aws.route53:
+      state: present
+      zone: "{{ domain_name }}"
+      record: "{{ item.item }}.{{ domain_name }}"   # mongodb.daws92s.shop
+      type: A
+      ttl: 1
+      value: "{{ item.instances[0].private_ip_address }}"
+      overwrite: true
+    loop: "{{ ec2_output.results }}"
+    when: action == "create"
+
+  - name: create r53 record for frontend
+    amazon.aws.route53:
+      state: present
+      zone: "{{ domain_name }}"
+      record: "{{ domain_name }}"                   # daws92s.shop
+      type: A
+      ttl: 1
+      value: "{{ item.instances[0].public_ip_address }}"
+      overwrite: true
+    loop: "{{ ec2_output.results }}"
+    when:
+    - action == "create"
+    - item.item == "frontend"
+
+  - name: delete r53 records
+    amazon.aws.route53:
+      state: absent
+      zone: "{{ domain_name }}"
+      record: "{{ item }}.{{ domain_name }}"
+      type: A
+      ttl: 1
+    loop: "{{ instances }}"
+    when: action == "delete"
+
+  - name: delete r53 record for frontend
+    amazon.aws.route53:
+      state: absent
+      zone: "{{ domain_name }}"
+      record: "{{ domain_name }}"
+      type: A
+      ttl: 1
+    when: action == "delete"
+
+  - name: delete ec2 instances
+    amazon.aws.ec2_instance:
+      state: absent
+      filters:
+        "tag:Name": "roboshop-{{ item }}"
+      wait: false
+      region: us-east-1
+    loop: "{{ instances }}"
+    when: action == "delete"
