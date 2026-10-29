@@ -17,7 +17,7 @@
       enabled: yes
 
   - name: check root password is already set
-    command: mysql -uroot -p{{ MYSQL_ROOT_PASSWORD }} -e 'SELECT 1'
+    command: mysql  -e 'SELECT 1'
     register: mysql_root_check
     ignore_errors: true
     changed_when: false
