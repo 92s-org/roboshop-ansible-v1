@@ -11,6 +11,7 @@
       - maven
       - java-25-openjdk-devel
       - maven-openjdk25 # installing this so that we no need to set JAVA_HOME again
+      - mysql
       state: present
 
   # - name: find java25 path
