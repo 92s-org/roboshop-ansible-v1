@@ -1,0 +1,4 @@
+# ansible run output
+*.log
+*.out
+logs/
