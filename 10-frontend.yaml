@@ -49,12 +49,12 @@
     command: nginx -t
     changed_when: false
 
-  - name: allow nginx to connect to backend (SELinux)
-    ansible.posix.seboolean:
-      name: httpd_can_network_connect
-      state: true
-      persistent: true
-    when: ansible_selinux.status == "enabled"
+  # - name: allow nginx to connect to backend (SELinux)
+  #   ansible.posix.seboolean:
+  #     name: httpd_can_network_connect
+  #     state: true
+  #     persistent: true
+  #   when: ansible_selinux.status == "enabled"
 
   - name: restart and enable nginx
     service:
