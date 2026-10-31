@@ -35,7 +35,7 @@ stage() {
 }
 
 stage 01-mongodb.yaml 02-redis.yaml 03-mysql.yaml 04-rabbitmq.yaml
-stage 05-catalogue.yaml 06-user.yaml 07-cart.yaml 08-shipping.yaml
+stage 05-catalogue.yaml 06-user.yaml 07-cart.yaml 08-shipping.yaml 09-payment.yaml 10-frontend.yaml
 stage 11-frontend.yaml
 
 echo "===== RoboShop setup complete ====="
